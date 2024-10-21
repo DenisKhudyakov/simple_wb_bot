@@ -1,0 +1,147 @@
+import asyncio
+from typing import AsyncGenerator
+
+import aiohttp
+from aiohttp.client_exceptions import ContentTypeError
+
+__base_url_for_get_products = "https://catalog.wb.ru/catalog/{shard}/v2/catalog?ab_testing=false&appType=1&cat={id_category}&curr=rub&dest=123585825"
+__url_product = "https://card.wb.ru/cards/v2/detail?appType=1&curr=rub&dest=123585825&spp=30&ab_testing=false&nm={id_product}"
+
+
+async def fetch_json(session, url):
+    """
+    Функция для выполнения GET-запроса и возврата JSON данных.
+    """
+    try:
+        async with session.get(url) as response:
+            # Проверяем, что статус успешный (200 OK)
+            if response.status == 200:
+                try:
+                    # Пытаемся декодировать ответ как JSON
+                    return await response.json()
+                except ContentTypeError:
+                    # Ловим ContentTypeError, если тип содержимого не JSON
+                    print(
+                        f"ContentTypeError: Неверный тип данных при попытке декодирования JSON. URL: {url}"
+                    )
+                    return None
+            else:
+                print(f"Ошибка {response.status}: {url}")
+                return None
+    except aiohttp.ClientError as e:
+        # Ловим любые другие сетевые ошибки
+        print(f"ClientError: Произошла ошибка при выполнении запроса: {e}")
+        return None
+
+
+def extract_category_data(category):
+    """
+    Функция для извлечения данных категории и подкатегорий.
+    """
+    try:
+        return {
+            "category_name": category["name"],
+            "category_url": category["url"],
+            "shard": category.get("shard"),
+            "query": category.get("query"),
+            "id_category": category.get("id"),
+        }
+    except KeyError:
+        return None
+
+
+async def get_catalog_wb(session) -> list:
+    """
+    Функция получения всего каталога на WB
+    :return: список каталога
+    """
+    url = "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json"
+    data_list = []
+    data = await fetch_json(session, url)
+
+    for d in data:
+        for child in d.get("childs", []):
+            category_data = extract_category_data(child)
+            if category_data:
+                data_list.append(category_data)
+            for sub_child in child.get("childs", []):
+                sub_category_data = extract_category_data(sub_child)
+                if sub_category_data:
+                    data_list.append(sub_category_data)
+
+    return data_list
+
+
+async def get_categorise(session) -> dict:
+    """
+    Функция для получения категорий с подкатегориями с WB.
+    :param session: Асинхронная сессия aiohttp.
+    :return: Словарь с категориями и подкатегориями.
+    """
+    url = "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json"
+    data = await fetch_json(session, url)
+    category_dict = {}
+    for category in data:
+        sub_categories = category.get("childs", [])
+        if sub_categories:
+            sub_category_names = [sub_cat.get("name") for sub_cat in sub_categories]
+            category_dict[category.get("name")] = sub_category_names
+    return category_dict
+
+
+async def get_product(session) -> AsyncGenerator:
+    """
+    Функция для получения информации о продукте с WB.
+    :param session: Асинхронная сессия aiohttp.
+    :return: словарь с продуктами.
+    """
+    data_list = await get_catalog_wb(session)
+    for data in data_list:
+        response = await fetch_json(
+            session=session,
+            url=__base_url_for_get_products.format(
+                shard=data["shard"], id_category=data["id_category"]
+            ),
+        )
+        if response:
+            try:
+                for i in response["data"]["products"]:
+                    yield i["id"], data
+            except KeyError:
+                print("Invalid JSON structure received")
+                continue
+
+
+async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
+    """
+    Функция для получения информации о продукте у которого есть баллы за отзыв
+    :param session:
+    :return:
+    """
+    async for product in get_product(session):
+        response = await fetch_json(
+            session, __url_product.format(id_product=product[0])
+        )
+        try:
+            yield {
+                "name_product": response["data"]["products"][0]["name"],
+                "total_price": response["data"]["products"][0]["sizes"][0]["price"][
+                    "total"
+                ]
+                / 100,
+                "cash_back": response["data"]["products"][0]["feedbackPoints"],
+                "url": f"https://www.wildberries.ru/catalog/{product[0]}/detail.aspx",
+            }
+        except KeyError:
+            continue
+
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        async for catalog in get_feedbackPoints_and_total_price(session):
+            if catalog:
+                print(catalog)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
