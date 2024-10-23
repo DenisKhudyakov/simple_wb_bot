@@ -8,6 +8,15 @@ __base_url_for_get_products = "https://catalog.wb.ru/catalog/{shard}/v2/catalog?
 __url_product = "https://card.wb.ru/cards/v2/detail?appType=1&curr=rub&dest=123585825&spp=30&ab_testing=false&nm={id_product}"
 
 
+def connection(func):
+    """Декоратор для создания сессии"""
+    async def wrapper(*args, **kwargs):
+        async with aiohttp.ClientSession() as session:
+            return await func(session, *args, **kwargs)
+
+    return wrapper
+
+
 async def fetch_json(session, url):
     """
     Функция для выполнения GET-запроса и возврата JSON данных.
@@ -72,21 +81,40 @@ async def get_catalog_wb(session) -> list:
     return data_list
 
 
-async def get_categorise(session) -> dict:
+@connection
+async def get_categories(session) -> dict:
     """
-    Функция для получения категорий с подкатегориями с WB.
+    Функция для получения категорий с подкатегориями с WB в формате {category: [sub_categories: [sub_categories]]}.
     :param session: Асинхронная сессия aiohttp.
-    :return: Словарь с категориями и подкатегориями.
+    :return: Словарь с категориями и их подкатегориями (включая вложенные подкатегории).
     """
     url = "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json"
     data = await fetch_json(session, url)
     category_dict = {}
+
+    # Рекурсивная функция для формирования вложенной структуры подкатегорий
+    def build_subcategories(sub_categories):
+        result = []
+        for sub_category in sub_categories:
+            sub_name = sub_category.get("name")
+            childs = sub_category.get("childs", [])
+            if childs:
+                # Если есть вложенные подкатегории, рекурсивно их добавляем
+                result.append({sub_name: build_subcategories(childs)})
+            else:
+                result.append(sub_name)
+        return result
+
     for category in data:
+        category_name = category.get("name")
         sub_categories = category.get("childs", [])
         if sub_categories:
-            sub_category_names = [sub_cat.get("name") for sub_cat in sub_categories]
-            category_dict[category.get("name")] = sub_category_names
+            # Формируем структуру подкатегорий
+            category_dict[category_name] = build_subcategories(sub_categories)
+
     return category_dict
+
+
 
 
 async def get_product(session) -> AsyncGenerator:
@@ -131,17 +159,15 @@ async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
                 / 100,
                 "cash_back": response["data"]["products"][0]["feedbackPoints"],
                 "url": f"https://www.wildberries.ru/catalog/{product[0]}/detail.aspx",
+                "catalog": product[1],
             }
         except KeyError:
             continue
 
 
 async def main():
-    async with aiohttp.ClientSession() as session:
-        async for catalog in get_feedbackPoints_and_total_price(session):
-            if catalog:
-                print(catalog)
+    return await get_categories()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print(asyncio.run(main()))
