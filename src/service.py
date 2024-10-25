@@ -4,7 +4,7 @@ from typing import AsyncGenerator
 import aiohttp
 from aiohttp.client_exceptions import ContentTypeError
 
-__base_url_for_get_products = "https://catalog.wb.ru/catalog/{shard}/v2/catalog?ab_testing=false&appType=1&cat={id_category}&curr=rub&dest=123585825"
+__base_url_for_get_products = "https://catalog.wb.ru/catalog/{shard}/v2/catalog?ab_testing=false&appType=1&cat={id_category}&curr=rub&dest=123585825&page={page}&ffeedbackpoints=1"
 __url_product = "https://card.wb.ru/cards/v2/detail?appType=1&curr=rub&dest=123585825&spp=30&ab_testing=false&nm={id_product}"
 
 
@@ -65,6 +65,7 @@ async def get_catalog_wb(session) -> list:
     :return: список каталога
     """
     url = "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json"
+
     data_list = []
     data = await fetch_json(session, url)
 
@@ -99,7 +100,6 @@ async def get_categories(session) -> dict:
             sub_name = sub_category.get("name")
             childs = sub_category.get("childs", [])
             if childs:
-                # Если есть вложенные подкатегории, рекурсивно их добавляем
                 result.append({sub_name: build_subcategories(childs)})
             else:
                 result.append(sub_name)
@@ -109,11 +109,9 @@ async def get_categories(session) -> dict:
         category_name = category.get("name")
         sub_categories = category.get("childs", [])
         if sub_categories:
-            # Формируем структуру подкатегорий
             category_dict[category_name] = build_subcategories(sub_categories)
 
     return category_dict
-
 
 
 
@@ -125,19 +123,20 @@ async def get_product(session) -> AsyncGenerator:
     """
     data_list = await get_catalog_wb(session)
     for data in data_list:
-        response = await fetch_json(
-            session=session,
-            url=__base_url_for_get_products.format(
-                shard=data["shard"], id_category=data["id_category"]
-            ),
-        )
-        if response:
-            try:
-                for i in response["data"]["products"]:
-                    yield i["id"], data
-            except KeyError:
-                print("Invalid JSON structure received")
-                continue
+        for page in range(1, 34):
+            response = await fetch_json(
+                session=session,
+                url=__base_url_for_get_products.format(
+                    shard=data["shard"], id_category=data["id_category"], page=page
+                ),
+            )
+            if response:
+                try:
+                    for i in response["data"]["products"]:
+                        yield i["id"], data
+                except KeyError:
+                    print("Invalid JSON structure received")
+                    continue
 
 
 async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
@@ -165,9 +164,4 @@ async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
             continue
 
 
-async def main():
-    return await get_categories()
 
-
-if __name__ == "__main__":
-    print(asyncio.run(main()))

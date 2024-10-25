@@ -16,11 +16,12 @@ async def get_all_products(db: AsyncSession):
 async def add_product(
     db: AsyncSession, name: str, price: int, cashback: int, url: str, sub_category: str
 ) -> None:
-    product = Product(
-        name=name, price=price, cashback=cashback, url=url, sub_category=sub_category
-    )
-    db.add(product)
-    await db.commit()
+    if cashback > price:
+        product = Product(
+            name=name, price=price, cashback=cashback, url=url, sub_category=sub_category
+        )
+        db.add(product)
+        await db.commit()
 
 
 @connection
