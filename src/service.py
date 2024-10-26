@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Union, List, Dict, Set
 
 import aiohttp
 from aiohttp.client_exceptions import ContentTypeError
@@ -164,4 +164,27 @@ async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
             continue
 
 
+async def extract_strings(data: Union[List, Dict]) -> Set[str]:
+    """
+    Функция преобразования огромного словаря с вложенными списками категорий
+    и исключает дубликаты строковых значений, необходимо для создания новой клавиатуры
+    :param data: словарь с данными из каталога
+    :return: множество строковых значений
+    """
+
+    result = []
+
+    def recursive_extract(item):
+        if isinstance(item, str):
+            result.append(item)
+        elif isinstance(item, list):
+            for sub_item in item:
+                recursive_extract(sub_item)
+        elif isinstance(item, dict):
+            for key, value in item.items():
+                recursive_extract(key)
+                recursive_extract(value)
+
+    recursive_extract(data)
+    return set(result)
 

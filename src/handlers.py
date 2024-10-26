@@ -4,7 +4,8 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery
 
 import src.keyboard as kb
-from src.bd.crud import add_product, clear_product_table, filter_products, get_products_with_high_cashback
+from src.bd.crud import add_product, clear_product_table, filter_products, \
+    get_all_products
 from src.config import DEFAULT_COMMANDS
 from src.keyboard import cancel_keyboard
 from src.service import get_feedbackPoints_and_total_price
@@ -44,28 +45,33 @@ async def cancel_process(message: types.Message):
 
 @router.message(Command("select_category"))
 async def send_category_buttons(message: types.Message):
-    """Функция вывода кнопок с категориями"""
+    """
+    Функция вывода кнопок с категориями
+
+    """
     await message.answer(
         "Выберите категорию:", reply_markup=await kb.keyboard_catalog()
     )
 
+"""
+Не актуальный хендлер, который обрабатывает кнопки с подкатегориями
+"""
+# @router.callback_query(lambda call: call.data.startswith("category_"))
+# async def callback_inline(call: CallbackQuery):
+#     """Функция вывода кнопок с подкатегориями"""
+#     CATALOG = await kb.catalog()
+#     category = call.data.split("_")[1]
+#     subcategories = CATALOG.get(category, [])
+#     if subcategories:
+#         await call.message.answer(
+#             "Выберите подкатегорию:",
+#             reply_markup=await kb.sub_catalog_keyboard(category),
+#         )
+#     else:
+#         await call.message.answer(f"Подкатегории для категории {category} не найдены.")
 
-@router.callback_query(lambda call: call.data.startswith("category_"))
-async def callback_inline(call: CallbackQuery):
-    """Функция вывода кнопок с подкатегориями"""
-    CATALOG = await kb.catalog()
-    category = call.data.split("_")[1]
-    subcategories = CATALOG.get(category, [])
-    if subcategories:
-        await call.message.answer(
-            "Выберите подкатегорию:",
-            reply_markup=await kb.sub_catalog_keyboard(category),
-        )
-    else:
-        await call.message.answer(f"Подкатегории для категории {category} не найдены.")
 
-
-@router.callback_query(lambda call: call.data.startswith("subcat_"))
+@router.callback_query(lambda call: call.data.startswith("cat_"))
 async def callback_product(call: types.CallbackQuery):
     """Функция вывода товаров с кэшбэком через кнопку"""
     subcategory = call.data.split("_")[1]
@@ -104,7 +110,7 @@ async def help(message: types.Message):
 @router.message(Command("high_cashback"))
 async def show_products_with_high_cashback(message: types.Message):
     """Функция для вывода товаров с кэшбэком больше цены"""
-    products = await get_products_with_high_cashback()
+    products = await get_all_products()
     if products:
         for product in products:
             await message.answer(

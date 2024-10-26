@@ -26,8 +26,14 @@ async def add_product(
 
 @connection
 async def filter_products(db: AsyncSession, sub_category: str):
-    products = await db.execute(select(Product).filter_by(sub_category=sub_category))
+    products = await db.execute(select(Product).where(Product.sub_category.like(f"%{sub_category}%")))
     return products.scalars().all()
+
+
+@connection
+async def get_product_by_category(db: AsyncSession, sub_category: str):
+    product = await db.execute(select(Product).where(Product.sub_category == sub_category))
+    return product
 
 
 @connection
