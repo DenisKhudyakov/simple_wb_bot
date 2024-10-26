@@ -19,8 +19,12 @@
    cd telegram-bot-docker
 
 2. **Создайте .env файл в корне проекта и укажите необходимые переменные среды, например токен бота:**
-    
-    TELEGRAM_BOT_TOKEN=your_bot_token
+
+   TELEGRAM_TOKEN=вставить токен от BotFather
+   USERNAME_BD=вставить имя пользователь
+   PASSWORD_BD=вставить пароль БД
+   DB_NAME=вставить имя БД
+   PORT_BD=вставить порт
 
 3. **Команда для запуска**
 
