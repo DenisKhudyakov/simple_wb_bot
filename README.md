@@ -15,7 +15,7 @@
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/telegram-bot-docker.git
+   git clone https://github.com/DenisKhudyakov/simple_wb_bot.git
    cd telegram-bot-docker
 
 2. **Создайте .env файл в корне проекта и укажите необходимые переменные среды, например токен бота:**
