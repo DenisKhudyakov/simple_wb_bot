@@ -17,7 +17,7 @@ DB_NAME = os.getenv("DB_NAME")
 PORT_BD = os.getenv("PORT_BD")
 
 DATABASE_URL = (
-    f"postgresql+asyncpg://{USERNAME_BD}:{PASSWORD_BD}@localhost:{PORT_BD}/{DB_NAME}"
+    f"postgresql+asyncpg://{USERNAME_BD}:{PASSWORD_BD}@db:{PORT_BD}/{DB_NAME}"
 )
 engine = create_async_engine(DATABASE_URL)
 async_session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
