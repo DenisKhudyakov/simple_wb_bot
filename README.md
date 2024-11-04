@@ -9,7 +9,6 @@
 - Получите токен у BotFather [Telegram Bot Token](https://core.telegram.org/bots#creating-a-new-bot).
 
 
-
 ## Запуск
 
 1. **Clone the Repository**
