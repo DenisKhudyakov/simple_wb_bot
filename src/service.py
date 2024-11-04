@@ -162,6 +162,8 @@ async def get_feedbackPoints_and_total_price(session) -> AsyncGenerator:
             }
         except KeyError:
             continue
+        except IndexError:
+            continue
 
 
 async def extract_strings(data: Union[List, Dict]) -> Set[str]:
@@ -187,4 +189,15 @@ async def extract_strings(data: Union[List, Dict]) -> Set[str]:
 
     recursive_extract(data)
     return set(result)
+
+
+
+if __name__ == "__main__":
+    async def main():
+        async with aiohttp.ClientSession() as session:
+            data_list = await fetch_json(session, "https://card.wb.ru/cards/v2/detail?appType=1&curr=rub&dest=123585825&spp=30&ab_testing=false&nm=183693776")
+            return data_list["data"]["products"][0]["feedbackPoints"]
+
+
+    print(asyncio.run(main()))
 
