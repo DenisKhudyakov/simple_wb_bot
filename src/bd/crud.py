@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bd.base import connection
